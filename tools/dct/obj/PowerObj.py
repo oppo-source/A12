@@ -15,18 +15,15 @@
 import sys,os
 import re
 import string
-import configparser as ConfigParser
+import ConfigParser
 import xml.dom.minidom
 
-import obj.ChipObj
+import ChipObj
 from data.PowerData import PowerData
 from utility.util import log
 from utility.util import LogLevel
 from utility.util import sorted_key
-from obj.ModuleObj import ModuleObj
-
-def cmp(a, b):
-    return bool(a > b) - bool(a < b)
+from ModuleObj import ModuleObj
 
 class PowerObj(ModuleObj):
     def __init__(self):
@@ -78,7 +75,7 @@ class PowerObj(ModuleObj):
             value = ModuleObj.get_data(self)[key]
             if value.get_varName() == '':
                 continue
-            idx = int(key[5:])
+            idx = string.atoi(key[5:])
             name = self.__list[idx]
             gen_str += '''#define GPIO_%s\t\tGPIO_%s\n''' %(name.upper(), value.get_varName())
 
