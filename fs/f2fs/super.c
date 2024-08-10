@@ -478,6 +478,126 @@ static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
 }
 #endif
 
+#ifdef CONFIG_QUOTA
+static const char * const quotatypes[] = INITQFNAMES;
+#define QTYPE2NAME(t) (quotatypes[t])
+static int f2fs_set_qf_name(struct super_block *sb, int qtype,
+							substring_t *args)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	char *qname;
+	int ret = -EINVAL;
+
+	if (sb_any_quota_loaded(sb) && !F2FS_OPTION(sbi).s_qf_names[qtype]) {
+		f2fs_msg(sb, KERN_ERR,
+			"Cannot change journaled "
+			"quota options when quota turned on");
+		return -EINVAL;
+	}
+	if (f2fs_sb_has_quota_ino(sb)) {
+		f2fs_msg(sb, KERN_INFO,
+			"QUOTA feature is enabled, so ignore qf_name");
+		return 0;
+	}
+
+	qname = match_strdup(args);
+	if (!qname) {
+		f2fs_msg(sb, KERN_ERR,
+			"Not enough memory for storing quotafile name");
+		return -EINVAL;
+	}
+	if (F2FS_OPTION(sbi).s_qf_names[qtype]) {
+		if (strcmp(F2FS_OPTION(sbi).s_qf_names[qtype], qname) == 0)
+			ret = 0;
+		else
+			f2fs_msg(sb, KERN_ERR,
+				 "%s quota file already specified",
+				 QTYPE2NAME(qtype));
+		goto errout;
+	}
+	if (strchr(qname, '/')) {
+		f2fs_msg(sb, KERN_ERR,
+			"quotafile must be on filesystem root");
+		goto errout;
+	}
+	F2FS_OPTION(sbi).s_qf_names[qtype] = qname;
+	set_opt(sbi, QUOTA);
+	return 0;
+errout:
+	kfree(qname);
+	return ret;
+}
+
+static int f2fs_clear_qf_name(struct super_block *sb, int qtype)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+
+	if (sb_any_quota_loaded(sb) && F2FS_OPTION(sbi).s_qf_names[qtype]) {
+		f2fs_msg(sb, KERN_ERR, "Cannot change journaled quota options"
+			" when quota turned on");
+		return -EINVAL;
+	}
+	kfree(F2FS_OPTION(sbi).s_qf_names[qtype]);
+	F2FS_OPTION(sbi).s_qf_names[qtype] = NULL;
+	return 0;
+}
+
+static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
+{
+	/*
+	 * We do the test below only for project quotas. 'usrquota' and
+	 * 'grpquota' mount options are allowed even without quota feature
+	 * to support legacy quotas in quota files.
+	 */
+	if (test_opt(sbi, PRJQUOTA) && !f2fs_sb_has_project_quota(sbi->sb)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "Project quota feature not enabled. "
+			 "Cannot enable project quota enforcement.");
+		return -1;
+	}
+	if (F2FS_OPTION(sbi).s_qf_names[USRQUOTA] ||
+			F2FS_OPTION(sbi).s_qf_names[GRPQUOTA] ||
+			F2FS_OPTION(sbi).s_qf_names[PRJQUOTA]) {
+		if (test_opt(sbi, USRQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[USRQUOTA])
+			clear_opt(sbi, USRQUOTA);
+
+		if (test_opt(sbi, GRPQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[GRPQUOTA])
+			clear_opt(sbi, GRPQUOTA);
+
+		if (test_opt(sbi, PRJQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[PRJQUOTA])
+			clear_opt(sbi, PRJQUOTA);
+
+		if (test_opt(sbi, GRPQUOTA) || test_opt(sbi, USRQUOTA) ||
+				test_opt(sbi, PRJQUOTA)) {
+			f2fs_msg(sbi->sb, KERN_ERR, "old and new quota "
+					"format mixing");
+			return -1;
+		}
+
+		if (!F2FS_OPTION(sbi).s_jquota_fmt) {
+			f2fs_msg(sbi->sb, KERN_ERR, "journaled quota format "
+					"not specified");
+			return -1;
+		}
+	}
+
+	if (f2fs_sb_has_quota_ino(sbi->sb) && F2FS_OPTION(sbi).s_jquota_fmt) {
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"QUOTA feature is enabled, so ignore jquota_fmt");
+		F2FS_OPTION(sbi).s_jquota_fmt = 0;
+	}
+	if (f2fs_sb_has_quota_ino(sbi->sb) && f2fs_readonly(sbi->sb)) {
+		f2fs_msg(sbi->sb, KERN_INFO,
+			 "Filesystem with quota feature cannot be mounted RDWR "
+			 "without CONFIG_QUOTA");
+		return -1;
+	}
+	return 0;
+}
+#endif
+
 static int parse_options(struct super_block *sb, char *options)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -587,6 +707,15 @@ static int parse_options(struct super_block *sb, char *options)
 			set_opt(sbi, INLINE_XATTR_SIZE);
 			F2FS_OPTION(sbi).inline_xattr_size = arg;
 			break;
+		case Opt_noinline_xattr:
+			clear_opt(sbi, INLINE_XATTR);
+			break;
+		case Opt_inline_xattr_size:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			set_opt(sbi, INLINE_XATTR_SIZE);
+			F2FS_OPTION(sbi).inline_xattr_size = arg;
+			break;
 #else
 		case Opt_user_xattr:
 			f2fs_msg(sb, KERN_INFO,
@@ -599,6 +728,10 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_inline_xattr:
 			f2fs_msg(sb, KERN_INFO,
 				"inline_xattr options not supported");
+			break;
+		case Opt_noinline_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"noinline_xattr options not supported");
 			break;
 		case Opt_noinline_xattr:
 			f2fs_msg(sb, KERN_INFO,
@@ -735,6 +868,40 @@ static int parse_options(struct super_block *sb, char *options)
 			}
 			F2FS_OPTION(sbi).s_resgid = gid;
 			break;
+		case Opt_reserve_root:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (test_opt(sbi, RESERVE_ROOT)) {
+				f2fs_msg(sb, KERN_INFO,
+					"Preserve previous reserve_root=%u",
+					F2FS_OPTION(sbi).root_reserved_blocks);
+			} else {
+				F2FS_OPTION(sbi).root_reserved_blocks = arg;
+				set_opt(sbi, RESERVE_ROOT);
+			}
+			break;
+		case Opt_resuid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			uid = make_kuid(current_user_ns(), arg);
+			if (!uid_valid(uid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid uid value %d", arg);
+				return -EINVAL;
+			}
+			F2FS_OPTION(sbi).s_resuid = uid;
+			break;
+		case Opt_resgid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			gid = make_kgid(current_user_ns(), arg);
+			if (!gid_valid(gid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid gid value %d", arg);
+				return -EINVAL;
+			}
+			F2FS_OPTION(sbi).s_resgid = gid;
+			break;
 		case Opt_mode:
 			name = match_strdup(&args[0]);
 
@@ -786,6 +953,152 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_nolazytime:
 			sb->s_flags &= ~MS_LAZYTIME;
+			break;
+#ifdef CONFIG_QUOTA
+		case Opt_quota:
+		case Opt_usrquota:
+			set_opt(sbi, USRQUOTA);
+			break;
+		case Opt_grpquota:
+			set_opt(sbi, GRPQUOTA);
+			break;
+		case Opt_prjquota:
+			set_opt(sbi, PRJQUOTA);
+			break;
+		case Opt_usrjquota:
+			ret = f2fs_set_qf_name(sb, USRQUOTA, &args[0]);
+			if (ret)
+				return ret;
+			break;
+		case Opt_grpjquota:
+			ret = f2fs_set_qf_name(sb, GRPQUOTA, &args[0]);
+			if (ret)
+				return ret;
+			break;
+		case Opt_prjjquota:
+			ret = f2fs_set_qf_name(sb, PRJQUOTA, &args[0]);
+			if (ret)
+				return ret;
+			break;
+		case Opt_offusrjquota:
+			ret = f2fs_clear_qf_name(sb, USRQUOTA);
+			if (ret)
+				return ret;
+			break;
+		case Opt_offgrpjquota:
+			ret = f2fs_clear_qf_name(sb, GRPQUOTA);
+			if (ret)
+				return ret;
+			break;
+		case Opt_offprjjquota:
+			ret = f2fs_clear_qf_name(sb, PRJQUOTA);
+			if (ret)
+				return ret;
+			break;
+		case Opt_jqfmt_vfsold:
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_OLD;
+			break;
+		case Opt_jqfmt_vfsv0:
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_V0;
+			break;
+		case Opt_jqfmt_vfsv1:
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_V1;
+			break;
+		case Opt_noquota:
+			clear_opt(sbi, QUOTA);
+			clear_opt(sbi, USRQUOTA);
+			clear_opt(sbi, GRPQUOTA);
+			clear_opt(sbi, PRJQUOTA);
+			break;
+#else
+		case Opt_quota:
+		case Opt_usrquota:
+		case Opt_grpquota:
+		case Opt_prjquota:
+		case Opt_usrjquota:
+		case Opt_grpjquota:
+		case Opt_prjjquota:
+		case Opt_offusrjquota:
+		case Opt_offgrpjquota:
+		case Opt_offprjjquota:
+		case Opt_jqfmt_vfsold:
+		case Opt_jqfmt_vfsv0:
+		case Opt_jqfmt_vfsv1:
+		case Opt_noquota:
+			f2fs_msg(sb, KERN_INFO,
+					"quota operations not supported");
+			break;
+#endif
+		case Opt_whint:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+			if (strlen(name) == 10 &&
+					!strncmp(name, "user-based", 10)) {
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_USER;
+			} else if (strlen(name) == 3 &&
+					!strncmp(name, "off", 3)) {
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
+			} else if (strlen(name) == 8 &&
+					!strncmp(name, "fs-based", 8)) {
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_FS;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_alloc:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+
+			if (strlen(name) == 7 &&
+					!strncmp(name, "default", 7)) {
+				F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
+			} else if (strlen(name) == 5 &&
+					!strncmp(name, "reuse", 5)) {
+				F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_fsync:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+			if (strlen(name) == 5 &&
+					!strncmp(name, "posix", 5)) {
+				F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_POSIX;
+			} else if (strlen(name) == 6 &&
+					!strncmp(name, "strict", 6)) {
+				F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_STRICT;
+			} else if (strlen(name) == 9 &&
+					!strncmp(name, "nobarrier", 9)) {
+				F2FS_OPTION(sbi).fsync_mode =
+							FSYNC_MODE_NOBARRIER;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_test_dummy_encryption:
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+			if (!f2fs_sb_has_encrypt(sb)) {
+				f2fs_msg(sb, KERN_ERR, "Encrypt feature is off");
+				return -EINVAL;
+			}
+
+			F2FS_OPTION(sbi).test_dummy_encryption = true;
+			f2fs_msg(sb, KERN_INFO,
+					"Test dummy encryption mode enabled");
+#else
+			f2fs_msg(sb, KERN_INFO,
+					"Test dummy encryption mount option ignored");
+#endif
 			break;
 #ifdef CONFIG_QUOTA
 		case Opt_quota:
@@ -2141,6 +2454,49 @@ static int f2fs_quota_sync(struct super_block *sb, int type)
 		truncate_inode_pages(&dqopt->files[cnt]->i_data, 0);
 		inode_unlock(dqopt->files[cnt]);
 	}
+#ifdef CONFIG_QUOTA
+	if (f2fs_check_quota_options(sbi))
+		return -EINVAL;
+#endif
+
+	if (F2FS_IO_SIZE_BITS(sbi) && !test_opt(sbi, LFS)) {
+		f2fs_msg(sb, KERN_ERR,
+				"Should set mode=lfs with %uKB-sized IO",
+				F2FS_IO_SIZE_KB(sbi));
+		return -EINVAL;
+	}
+
+	if (test_opt(sbi, INLINE_XATTR_SIZE)) {
+		if (!f2fs_sb_has_extra_attr(sb) ||
+			!f2fs_sb_has_flexible_inline_xattr(sb)) {
+			f2fs_msg(sb, KERN_ERR,
+					"extra_attr or flexible_inline_xattr "
+					"feature is off");
+			return -EINVAL;
+		}
+		if (!test_opt(sbi, INLINE_XATTR)) {
+			f2fs_msg(sb, KERN_ERR,
+					"inline_xattr_size option should be "
+					"set with inline_xattr option");
+			return -EINVAL;
+		}
+		if (!F2FS_OPTION(sbi).inline_xattr_size ||
+			F2FS_OPTION(sbi).inline_xattr_size >=
+					DEF_ADDRS_PER_INODE -
+					F2FS_TOTAL_EXTRA_ATTR_SIZE -
+					DEF_INLINE_RESERVED_SIZE -
+					DEF_MIN_INLINE_SIZE) {
+			f2fs_msg(sb, KERN_ERR,
+					"inline xattr size is out of range");
+			return -EINVAL;
+		}
+	}
+
+	/* Not pass down write hints if the number of active logs is lesser
+	 * than NR_CURSEG_TYPE.
+	 */
+	if (F2FS_OPTION(sbi).active_logs != NR_CURSEG_TYPE)
+		F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
 	return 0;
 }
 
@@ -2688,6 +3044,16 @@ int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 		return 1;
 	}
 
+	ovp_segments = le32_to_cpu(ckpt->overprov_segment_count);
+	reserved_segments = le32_to_cpu(ckpt->rsvd_segment_count);
+
+	if (unlikely(fsmeta < F2FS_MIN_SEGMENTS ||
+			ovp_segments == 0 || reserved_segments == 0)) {
+		f2fs_msg(sbi->sb, KERN_ERR,
+			"Wrong layout: check mkfs.f2fs version");
+		return 1;
+	}
+
 	main_segs = le32_to_cpu(raw_super->segment_count_main);
 	blocks_per_seg = sbi->blocks_per_seg;
 
@@ -2766,6 +3132,72 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 	return percpu_counter_init(&sbi->total_valid_inode_count, 0,
 								GFP_KERNEL);
 }
+
+#ifdef CONFIG_BLK_DEV_ZONED
+static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
+{
+	struct block_device *bdev = FDEV(devi).bdev;
+	sector_t nr_sectors = bdev->bd_part->nr_sects;
+	sector_t sector = 0;
+	struct blk_zone *zones;
+	unsigned int i, nr_zones;
+	unsigned int n = 0;
+	int err = -EIO;
+
+	if (!f2fs_sb_has_blkzoned(sbi->sb))
+		return 0;
+
+	if (sbi->blocks_per_blkz && sbi->blocks_per_blkz !=
+				SECTOR_TO_BLOCK(bdev_zone_sectors(bdev)))
+		return -EINVAL;
+	sbi->blocks_per_blkz = SECTOR_TO_BLOCK(bdev_zone_sectors(bdev));
+	if (sbi->log_blocks_per_blkz && sbi->log_blocks_per_blkz !=
+				__ilog2_u32(sbi->blocks_per_blkz))
+		return -EINVAL;
+	sbi->log_blocks_per_blkz = __ilog2_u32(sbi->blocks_per_blkz);
+	FDEV(devi).nr_blkz = SECTOR_TO_BLOCK(nr_sectors) >>
+					sbi->log_blocks_per_blkz;
+	if (nr_sectors & (bdev_zone_sectors(bdev) - 1))
+		FDEV(devi).nr_blkz++;
+
+	FDEV(devi).blkz_type = f2fs_kmalloc(sbi, FDEV(devi).nr_blkz,
+								GFP_KERNEL);
+	if (!FDEV(devi).blkz_type)
+		return -ENOMEM;
+
+#define F2FS_REPORT_NR_ZONES   4096
+
+	zones = f2fs_kzalloc(sbi, sizeof(struct blk_zone) *
+				F2FS_REPORT_NR_ZONES, GFP_KERNEL);
+	if (!zones)
+		return -ENOMEM;
+
+	/* Get block zones type */
+	while (zones && sector < nr_sectors) {
+
+		nr_zones = F2FS_REPORT_NR_ZONES;
+		err = blkdev_report_zones(bdev, sector,
+					  zones, &nr_zones,
+					  GFP_KERNEL);
+		if (err)
+			break;
+		if (!nr_zones) {
+			err = -EIO;
+			break;
+		}
+
+		for (i = 0; i < nr_zones; i++) {
+			FDEV(devi).blkz_type[n] = zones[i].type;
+			sector += zones[i].len;
+			n++;
+		}
+	}
+
+	kfree(zones);
+
+	return err;
+}
+#endif
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
@@ -3211,6 +3643,116 @@ static void f2fs_tuning_parameters(struct f2fs_sb_info *sbi)
 	}
 }
 
+static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
+	unsigned int max_devices = MAX_DEVICES;
+	int i;
+
+	/* Initialize single device information */
+	if (!RDEV(0).path[0]) {
+#ifdef CONFIG_BLK_DEV_ZONED
+		if (!bdev_is_zoned(sbi->sb->s_bdev))
+			return 0;
+		max_devices = 1;
+#else
+		return 0;
+#endif
+	}
+
+	/*
+	 * Initialize multiple devices information, or single
+	 * zoned block device information.
+	 */
+	sbi->devs = f2fs_kzalloc(sbi, sizeof(struct f2fs_dev_info) *
+						max_devices, GFP_KERNEL);
+	if (!sbi->devs)
+		return -ENOMEM;
+
+	for (i = 0; i < max_devices; i++) {
+
+		if (i > 0 && !RDEV(i).path[0])
+			break;
+
+		if (max_devices == 1) {
+			/* Single zoned block device mount */
+			FDEV(0).bdev =
+				blkdev_get_by_dev(sbi->sb->s_bdev->bd_dev,
+					sbi->sb->s_mode, sbi->sb->s_type);
+		} else {
+			/* Multi-device mount */
+			memcpy(FDEV(i).path, RDEV(i).path, MAX_PATH_LEN);
+			FDEV(i).total_segments =
+				le32_to_cpu(RDEV(i).total_segments);
+			if (i == 0) {
+				FDEV(i).start_blk = 0;
+				FDEV(i).end_blk = FDEV(i).start_blk +
+				    (FDEV(i).total_segments <<
+				    sbi->log_blocks_per_seg) - 1 +
+				    le32_to_cpu(raw_super->segment0_blkaddr);
+			} else {
+				FDEV(i).start_blk = FDEV(i - 1).end_blk + 1;
+				FDEV(i).end_blk = FDEV(i).start_blk +
+					(FDEV(i).total_segments <<
+					sbi->log_blocks_per_seg) - 1;
+			}
+			FDEV(i).bdev = blkdev_get_by_path(FDEV(i).path,
+					sbi->sb->s_mode, sbi->sb->s_type);
+		}
+		if (IS_ERR(FDEV(i).bdev))
+			return PTR_ERR(FDEV(i).bdev);
+
+		/* to release errored devices */
+		sbi->s_ndevs = i + 1;
+
+#ifdef CONFIG_BLK_DEV_ZONED
+		if (bdev_zoned_model(FDEV(i).bdev) == BLK_ZONED_HM &&
+				!f2fs_sb_has_blkzoned(sbi->sb)) {
+			f2fs_msg(sbi->sb, KERN_ERR,
+				"Zoned block device feature not enabled\n");
+			return -EINVAL;
+		}
+		if (bdev_zoned_model(FDEV(i).bdev) != BLK_ZONED_NONE) {
+			if (init_blkz_info(sbi, i)) {
+				f2fs_msg(sbi->sb, KERN_ERR,
+					"Failed to initialize F2FS blkzone information");
+				return -EINVAL;
+			}
+			if (max_devices == 1)
+				break;
+			f2fs_msg(sbi->sb, KERN_INFO,
+				"Mount Device [%2d]: %20s, %8u, %8x - %8x (zone: %s)",
+				i, FDEV(i).path,
+				FDEV(i).total_segments,
+				FDEV(i).start_blk, FDEV(i).end_blk,
+				bdev_zoned_model(FDEV(i).bdev) == BLK_ZONED_HA ?
+				"Host-aware" : "Host-managed");
+			continue;
+		}
+#endif
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Mount Device [%2d]: %20s, %8u, %8x - %8x",
+				i, FDEV(i).path,
+				FDEV(i).total_segments,
+				FDEV(i).start_blk, FDEV(i).end_blk);
+	}
+	f2fs_msg(sbi->sb, KERN_INFO,
+			"IO Block Size: %8d KB", F2FS_IO_SIZE_KB(sbi));
+	return 0;
+}
+
+static void f2fs_tuning_parameters(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_sm_info *sm_i = SM_I(sbi);
+
+	/* adjust parameters according to the volume size */
+	if (sm_i->main_segments <= SMALL_VOLUME_SEGMENTS) {
+		F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
+		sm_i->dcc_info->discard_granularity = 1;
+		sm_i->ipu_policy = 1 << F2FS_IPU_FORCE;
+	}
+}
+
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
@@ -3401,6 +3943,13 @@ try_onemore:
 	}
 
 	/* Initialize device list */
+	err = f2fs_scan_devices(sbi);
+	if (err) {
+		f2fs_msg(sb, KERN_ERR, "Failed to find devices");
+		goto free_devices;
+	}
+
+	* Initialize device list */
 	err = f2fs_scan_devices(sbi);
 	if (err) {
 		f2fs_msg(sb, KERN_ERR, "Failed to find devices");
