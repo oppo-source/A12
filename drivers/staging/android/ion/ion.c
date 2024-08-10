@@ -1295,7 +1295,7 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client,
 	/* if a handle exists for this buffer just take a reference to it */
 	handle = ion_handle_lookup(client, buffer);
 	if (!IS_ERR(handle)) {
-		handle = ion_handle_get_check_overflow(handle);
+		ion_handle_get(handle);
 		mutex_unlock(&client->lock);
 		goto end;
 	}
