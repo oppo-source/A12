@@ -274,7 +274,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 		break;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
-		pr_warn("Unrecoverable kprobe detected.\n");
+		pr_warn("Unrecoverable kprobe detected at %p.\n", p->addr);
 		dump_kprobe(p);
 		BUG();
 		break;

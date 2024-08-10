@@ -302,34 +302,19 @@ static int read_symbols(struct elf *elf)
 				continue;
 			sym->pfunc = sym->cfunc = sym;
 			coldstr = strstr(sym->name, ".cold.");
-			if (!coldstr)
-				continue;
+			if (coldstr) {
+				coldstr[0] = '\0';
+				pfunc = find_symbol_by_name(elf, sym->name);
+				coldstr[0] = '.';
 
-			coldstr[0] = '\0';
-			pfunc = find_symbol_by_name(elf, sym->name);
-			coldstr[0] = '.';
+				if (!pfunc) {
+					WARN("%s(): can't find parent function",
+					     sym->name);
+					goto err;
+				}
 
-			if (!pfunc) {
-				WARN("%s(): can't find parent function",
-				     sym->name);
-				goto err;
-			}
-
-			sym->pfunc = pfunc;
-			pfunc->cfunc = sym;
-
-			/*
-			 * Unfortunately, -fnoreorder-functions puts the child
-			 * inside the parent.  Remove the overlap so we can
-			 * have sane assumptions.
-			 *
-			 * Note that pfunc->len now no longer matches
-			 * pfunc->sym.st_size.
-			 */
-			if (sym->sec == pfunc->sec &&
-			    sym->offset >= pfunc->offset &&
-			    sym->offset + sym->len == pfunc->offset + pfunc->len) {
-				pfunc->len -= sym->len;
+				sym->pfunc = pfunc;
+				pfunc->cfunc = sym;
 			}
 		}
 	}

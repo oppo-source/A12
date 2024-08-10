@@ -44,8 +44,7 @@ SYSCALL_DEFINE0(arc_gettls)
 SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 {
 	struct pt_regs *regs = current_pt_regs();
-	u32 uval;
-	int ret;
+	int uval = -EFAULT;
 
 	/*
 	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
@@ -58,47 +57,23 @@ SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 	/* Z indicates to userspace if operation succeded */
 	regs->status32 &= ~STATUS_Z_MASK;
 
-	ret = access_ok(VERIFY_WRITE, uaddr, sizeof(*uaddr));
-	if (!ret)
-		 goto fail;
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+		return -EFAULT;
 
-again:
 	preempt_disable();
 
-	ret = __get_user(uval, uaddr);
-	if (ret)
-		 goto fault;
+	if (__get_user(uval, uaddr))
+		goto done;
 
-	if (uval != expected)
-		 goto out;
+	if (uval == expected) {
+		if (!__put_user(new, uaddr))
+			regs->status32 |= STATUS_Z_MASK;
+	}
 
-	ret = __put_user(new, uaddr);
-	if (ret)
-		 goto fault;
-
-	regs->status32 |= STATUS_Z_MASK;
-
-out:
+done:
 	preempt_enable();
+
 	return uval;
-
-fault:
-	preempt_enable();
-
-	if (unlikely(ret != -EFAULT))
-		 goto fail;
-
-	down_read(&current->mm->mmap_sem);
-	ret = fixup_user_fault(current, current->mm, (unsigned long) uaddr,
-			       FAULT_FLAG_WRITE, NULL);
-	up_read(&current->mm->mmap_sem);
-
-	if (likely(!ret))
-		 goto again;
-
-fail:
-	force_sig(SIGSEGV, current);
-	return ret;
 }
 
 void arch_cpu_idle(void)

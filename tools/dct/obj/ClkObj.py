@@ -14,20 +14,17 @@
 
 import re
 import string
-import configparser as ConfigParser
+import ConfigParser
 
 import xml.dom.minidom
 
-from obj.ModuleObj import ModuleObj
+from ModuleObj import ModuleObj
 from data.ClkData import ClkData
 from data.ClkData import OldClkData
 from data.ClkData import NewClkData
 from utility.util import log
 from utility.util import LogLevel
 from utility.util import sorted_key
-
-def cmp(a, b):
-    return bool(a > b) - bool(a < b)
 
 DEFAULT_AUTOK = 'AutoK'
 class ClkObj(ModuleObj):
@@ -68,14 +65,14 @@ class ClkObj(ModuleObj):
         cp = ConfigParser.ConfigParser(allow_no_value=True)
         cp.read(ModuleObj.get_figPath())
 
-        count = int(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
+        count = string.atoi(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
         self.__count = count
 
         ops = cp.options('CLK_BUF')
         for op in ops:
             if op == 'clk_buf_count':
-                self.__count = int(cp.get('CLK_BUF', op))
-                ClkData._count = int(cp.get('CLK_BUF', op))
+                self.__count = string.atoi(cp.get('CLK_BUF', op))
+                ClkData._count = string.atoi(cp.get('CLK_BUF', op))
                 continue
 
             value = cp.get('CLK_BUF', op)
@@ -83,8 +80,8 @@ class ClkObj(ModuleObj):
 
             data = OldClkData()
             data.set_curList(var_list[2:])
-            data.set_defVarName(int(var_list[0]))
-            data.set_defCurrent(int(var_list[1]))
+            data.set_defVarName(string.atoi(var_list[0]))
+            data.set_defCurrent(string.atoi(var_list[1]))
 
             key = op[16:].upper()
             ModuleObj.set_data(self, key, data)
@@ -364,7 +361,7 @@ class ClkObj_Rushmore(ClkObj):
         cp = ConfigParser.ConfigParser(allow_no_value=True)
         cp.read(ModuleObj.get_figPath())
 
-        count = int(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
+        count = string.atoi(cp.get('CLK_BUF', 'CLK_BUF_COUNT'))
         self.__count = count
 
     def read(self, node):
@@ -502,19 +499,19 @@ class ClkObj_MT6779(ClkObj):
             var_list = value.split(r'/')
 
             data = NewClkData()
-            data.set_defVarName(int(var_list[0]))
+            data.set_defVarName(string.atoi(var_list[0]))
 
             buf_output_list = var_list[1].split(r":")
             # only -1 means no data
             if len(buf_output_list) > 1:
                 data.cur_buf_output_list = buf_output_list[1:]
-                data.set_def_buf_output(int(buf_output_list[0]))
+                data.set_def_buf_output(string.atoi(buf_output_list[0]))
 
             driving_control_list = var_list[2].split(r":")
             # only -1 means no data
             if len(driving_control_list) > 1:
                 data.cur_driving_control_list = driving_control_list[1:]
-                data.set_def_driving_control(int(driving_control_list[0]))
+                data.set_def_driving_control(string.atoi(driving_control_list[0]))
 
             key = op[16:].upper()
             ModuleObj.set_data(self, key, data)

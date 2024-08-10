@@ -249,22 +249,6 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_SCHEDUTIL
-	tristate "'schedutil' cpufreq policy governor"
-	depends on CPU_FREQ
-	select CPU_FREQ_GOV_ATTR_SET
-	select IRQ_WORK
-	help
-	  The frequency selection formula used by this governor is analogous
-	  to the one used by 'ondemand', but instead of computing CPU load
-	  as the "non-idle CPU time" to "total CPU time" ratio, it uses CPU
-	  utilization data provided by the scheduler as input.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq_schedutil.
-
-	  If in doubt, say N.
-
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT

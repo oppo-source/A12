@@ -16,7 +16,7 @@ import re
 import os
 import string
 
-import configparser as ConfigParser
+import ConfigParser
 import xml.dom.minidom
 
 from data.EintData import EintData
@@ -27,9 +27,6 @@ from utility.util import compare
 
 from obj.ModuleObj import ModuleObj
 from obj.GpioObj import GpioObj
-
-def cmp(a, b):
-    return bool(a > b) - bool(a < b)
 
 class EintObj(ModuleObj):
     def __init__(self, gpio_obj):
@@ -97,14 +94,14 @@ class EintObj(ModuleObj):
             value = cp.get('GPIO', op)
             list = re.split(r' +|\t+', value)
 
-            map[int(re.findall(r'\d+', op)[0])] = int(list[len(list)-2])
+            map[string.atoi(re.findall(r'\d+', op)[0])] = string.atoi(list[len(list)-2])
             mode_map[op] = list[0:len(list)-2]
 
         EintData.set_mapTable(map)
         EintData.set_modeMap(mode_map)
 
         if cp.has_option('EINT', 'EINT_MAP_COUNT'):
-            self.__map_count = int(cp.get('EINT', 'EINT_MAP_COUNT'))
+            self.__map_count = string.atoi(cp.get('EINT', 'EINT_MAP_COUNT'))
 
         if cp.has_option('EINT', 'INTERNAL_EINT'):
             info = cp.get('EINT', 'INTERNAL_EINT')
@@ -135,7 +132,7 @@ class EintObj(ModuleObj):
         self.__gpio_obj.set_eint_map_table(EintData._map_table)
 
     #def compare(self, value):
-        #return int(value[4:])
+        #return string.atoi(value[4:])
 
     def fill_hFile(self):
         gen_str = ''
@@ -194,7 +191,7 @@ class EintObj(ModuleObj):
         count = 0
 
         if self.__map_count == 0:
-            for i in range(0, int(self.__count)):
+            for i in range(0, string.atoi(self.__count)):
                 if EintData.get_gpioNum(i) >= 0:
                     count += 1
             count += len(EintData._int_eint)
@@ -248,23 +245,23 @@ class EintObj(ModuleObj):
         gpio_vec= []
 
         for key in EintData._builtin_map.keys():
-            if int(eint_num) == int(key):
+            if string.atoi(eint_num) == string.atoi(key):
                 temp_map = EintData._builtin_map[key]
                 for key in temp_map.keys():
                     gpio_vec.append(key)
 
                 if flag:
                     for item in temp_map.keys():
-                        item_data = self.__gpio_obj.get_gpioData(int(item))
+                        item_data = self.__gpio_obj.get_gpioData(string.atoi(item))
 
-                        if item_data.get_defMode() == int(temp_map[item].split(':')[0]):
+                        if item_data.get_defMode() == string.atoi(temp_map[item].split(':')[0]):
                             gpio_vec = []
                             gpio_vec.append(item)
                             return gpio_vec
 
                 break
 
-        gpio_num = EintData.get_gpioNum(int(eint_num))
+        gpio_num = EintData.get_gpioNum(string.atoi(eint_num))
         if gpio_num >= 0:
             gpio_vec.append(gpio_num)
             if flag:
@@ -304,7 +301,7 @@ class EintObj(ModuleObj):
                 temp = 'IRQ_TYPE_LEVEL_LOW'
 
             gen_str += '''\tinterrupts = <%s %s>;\n''' %(self.refGpio(key[4:], True)[0], temp)
-            gen_str += '''\tdebounce = <%s %d>;\n''' %(self.refGpio(key[4:], True)[0], int(value.get_debounceTime()) * 1000)
+            gen_str += '''\tdebounce = <%s %d>;\n''' %(self.refGpio(key[4:], True)[0], string.atoi(value.get_debounceTime()) * 1000)
             gen_str += '''\tstatus = \"okay\";\n'''
             gen_str += '''};\n'''
             gen_str += '''\n'''
@@ -364,7 +361,7 @@ class EintObj_MT6739(EintObj):
             gen_str += '''\tinterrupts = <%s %s %s %d>;\n''' % (key[4:], temp, self.refGpio(key[4:], True)[0], self.refGpio_defMode(key[4:], True))
             if cmp(value.get_debounceEnable(), 'Enable') == 0:
                 gen_str += '''\tdeb-gpios = <&pio %s 0>;\n''' % (self.refGpio(key[4:], True)[0])
-                gen_str += '''\tdebounce = <%d>;\n''' % (int(value.get_debounceTime()) * 1000)
+                gen_str += '''\tdebounce = <%d>;\n''' % (string.atoi(value.get_debounceTime()) * 1000)
             gen_str += '''\tstatus = \"okay\";\n'''
             gen_str += '''};\n'''
             gen_str += '''\n'''
@@ -378,20 +375,20 @@ class EintObj_MT6739(EintObj):
         refGpio_defMode = 0
 
         for key in EintData._builtin_map.keys():
-            if int(eint_num) == int(key):
+            if string.atoi(eint_num) == string.atoi(key):
                 temp_map = EintData._builtin_map[key]
 
                 if flag:
                     for item in temp_map.keys():
-                        item_data = self.get_gpioObj().get_gpioData(int(item))
+                        item_data = self.get_gpioObj().get_gpioData(string.atoi(item))
 
-                        if item_data.get_defMode() == int(temp_map[item].split(':')[0]):
+                        if item_data.get_defMode() == string.atoi(temp_map[item].split(':')[0]):
                             refGpio_defMode = item_data.get_defMode()
                             return refGpio_defMode
 
                 break
 
-        gpio_num = EintData.get_gpioNum(int(eint_num))
+        gpio_num = EintData.get_gpioNum(string.atoi(eint_num))
         if gpio_num >= 0:
             if flag:
                 item_data = self.get_gpioObj().get_gpioData(gpio_num)

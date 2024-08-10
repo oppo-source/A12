@@ -59,7 +59,6 @@ struct cpuhp_cpu_state {
 	bool			rollback;
 	bool			single;
 	bool			bringup;
-	bool			booted_once;
 	struct hlist_node	*node;
 	enum cpuhp_state	cb_state;
 	int			result;
@@ -436,7 +435,6 @@ static int bringup_wait_for_ap(unsigned int cpu)
 	/* Unpark the stopper thread and the hotplug thread of the target cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
-
 
 	/* Should we go further up ? */
 	if (st->target > CPUHP_AP_ONLINE_IDLE) {
@@ -824,6 +822,7 @@ static int takedown_cpu(unsigned int cpu)
 
 	/* Park the smpboot threads */
 	kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
+	smpboot_park_threads(cpu);
 
 	/*
 	 * Prevent irq alloc/free while the dying cpu reorganizes the
@@ -964,7 +963,6 @@ out:
 		cpu_notify_nofail(CPU_POST_DEAD, cpu);
 	return ret;
 }
-
 
 static int do_cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
@@ -1108,7 +1106,7 @@ static int do_cpu_up(unsigned int cpu, enum cpuhp_state target)
 		err = -EBUSY;
 		goto out;
 	}
-	
+
 	err = _cpu_up(cpu, 0, target);
 out:
 	cpu_maps_update_done();
@@ -1861,7 +1859,6 @@ static struct attribute_group cpuhp_cpu_root_attr_group = {
 	NULL
 };
 
-
 static int __init cpuhp_sysfs_init(void)
 {
 	int cpu, ret;
@@ -1970,11 +1967,9 @@ void __init boot_cpu_init(void)
 /*
  * Must be called _AFTER_ setting up the per_cpu areas
  */
-void __init boot_cpu_hotplug_init(void)
+void __init boot_cpu_state_init(void)
 {
-	this_cpu_write(cpuhp_state.booted_once, true);
-
-	this_cpu_write(cpuhp_state.state, CPUHP_ONLINE);
+	per_cpu_ptr(&cpuhp_state, smp_processor_id())->state = CPUHP_ONLINE;
 }
 
 static ATOMIC_NOTIFIER_HEAD(idle_notifier);
