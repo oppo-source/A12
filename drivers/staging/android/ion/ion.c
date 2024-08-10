@@ -436,6 +436,19 @@ struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
 	return handle;
 }
 
+
+struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
+					       int id)
+{
+	struct ion_handle *handle;
+
+	mutex_lock(&client->lock);
+	handle = ion_handle_get_by_id_nolock(client, id);
+	mutex_unlock(&client->lock);
+
+	return handle;
+}
+
 static bool ion_handle_validate(struct ion_client *client,
 				struct ion_handle *handle)
 {
@@ -1200,28 +1213,25 @@ static struct dma_buf_ops dma_buf_ops = {
 	.kunmap = ion_dma_buf_kunmap,
 };
 
-static struct dma_buf *__ion_share_dma_buf(struct ion_client *client,
-					   struct ion_handle *handle,
-					   bool lock_client)
+struct dma_buf *ion_share_dma_buf(struct ion_client *client,
+				                  struct ion_handle *handle)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct ion_buffer *buffer;
 	struct dma_buf *dmabuf;
 	bool valid_handle;
 
-	if (lock_client)
-		mutex_lock(&client->lock);
+	mutex_lock(&client->lock);
+
 	valid_handle = ion_handle_validate(client, handle);
 	if (!valid_handle) {
 		WARN(1, "%s: invalid handle passed to share.\n", __func__);
-		if (lock_client)
-			mutex_unlock(&client->lock);
+		mutex_unlock(&client->lock);
 		return ERR_PTR(-EINVAL);
 	}
 	buffer = handle->buffer;
 	ion_buffer_get(buffer);
-	if (lock_client)
-		mutex_unlock(&client->lock);
+	mutex_unlock(&client->lock);
 
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
@@ -1263,18 +1273,7 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	handle->dbg.fd = fd;
 	return fd;
 }
-
-int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
-{
-	return __ion_share_dma_buf_fd(client, handle, true);
-}
 EXPORT_SYMBOL(ion_share_dma_buf_fd);
-
-int ion_share_dma_buf_fd_nolock(struct ion_client *client,
-				struct ion_handle *handle)
-{
-	return __ion_share_dma_buf_fd(client, handle, false);
-}
 
 struct ion_handle *ion_import_dma_buf(struct ion_client *client,
 				      struct dma_buf *dmabuf)
