@@ -121,12 +121,6 @@ Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:
 		 Controls to enable/disable IO stat.
 
-What:		/sys/fs/f2fs/<disk>/iostat_enable
-Date:		August 2017
-Contact:	"Chao Yu" <yuchao0@huawei.com>
-Description:
-		 Controls to enable/disable IO stat.
-
 What:		/sys/fs/f2fs/<disk>/ra_nid_pages
 Date:		October 2015
 Contact:	"Chao Yu" <chao2.yu@samsung.com>

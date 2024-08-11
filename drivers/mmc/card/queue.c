@@ -87,11 +87,6 @@ int mmc_is_cmdq_full(struct mmc_queue *mq, struct request *req)
 static struct request *mmc_peek_request(struct mmc_queue *mq)
 {
 	struct request_queue *q = mq->queue;
-	struct sched_param scheduler_params = {0};
-
-	scheduler_params.sched_priority = 1;
-
-	sched_setscheduler(current, SCHED_FIFO, &scheduler_params);
 
 	mq->cmdq_req_peeked = NULL;
 

@@ -51,15 +51,6 @@
 #include "eas_plus.h"
 #include "hmp.h"
 
-unsigned int sysctl_sched_sync_hint_enable = 1;
-unsigned int sysctl_sched_cstate_aware = 1;
-
-#ifdef CONFIG_SCHED_WALT
-unsigned int sysctl_sched_use_walt_cpu_util = 1;
-unsigned int sysctl_sched_use_walt_task_util = 1;
-__read_mostly unsigned int sysctl_sched_walt_cpu_high_irqload =
-    (10 * NSEC_PER_MSEC);
-#endif
 /*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
@@ -3075,26 +3066,6 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 	WRITE_ONCE(*ptr, res);                                  \
 } while (0)
 
-/*
- * Signed add and clamp on underflow.
- *
- * Explicitly do a load-store to ensure the intermediate value never hits
- * memory. This allows lockless observations without ever seeing the negative
- * values.
- */
-#define add_positive(_ptr, _val) do {                           \
-	typeof(_ptr) ptr = (_ptr);                              \
-	typeof(_val) val = (_val);                              \
-	typeof(*ptr) res, var = READ_ONCE(*ptr);                \
-								\
-	res = var + val;                                        \
-								\
-	if (val < 0 && res > var)                               \
-		res = 0;                                        \
-								\
-	WRITE_ONCE(*ptr, res);                                  \
-} while (0)
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /**
  * update_tg_load_avg - update the tg's load avg
@@ -4959,14 +4930,6 @@ static void update_capacity_of(int cpu, int type)
 	req_cap = req_cap == 0 ? 1 : req_cap;
 	set_cfs_cpu_capacity(cpu, true, req_cap, type);
 }
-#endif
-
-#ifdef CONFIG_SMP
-static bool __cpu_overutilized(int cpu, int delta);
-static bool cpu_overutilized(int cpu);
-unsigned long boosted_cpu_util(int cpu);
-#else
-#define boosted_cpu_util(cpu) cpu_util_freq(cpu)
 #endif
 
 /*
@@ -8345,9 +8308,6 @@ static void yield_task_fair(struct rq *rq)
 static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preempt)
 {
 	struct sched_entity *se = &p->se;
-#ifdef CONFIG_SMP
-	int task_new = flags & ENQUEUE_WAKEUP_NEW;
-#endif
 
 	/* throttled hierarchies are not runnable */
 	if (!se->on_rq || throttled_hierarchy(cfs_rq_of(se)))
@@ -11298,8 +11258,6 @@ void check_for_migration(struct rq *rq, struct task_struct *p)
 	if (!active_balance)
 		check_for_hint_migration(rq, p);
 }
-#else
-#define task_fits_max(p, cpu) true
 #endif /* CONFIG_SMP */
 
 /*
@@ -11787,11 +11745,6 @@ static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task
 {
 	struct sched_entity *se = &task->se;
 	unsigned int rr_interval = 0;
-
-	/* Boost imbalance to allow misfit task to be balanced. */
-	if (busiest->group_type == group_misfit_task)
-		env->imbalance = max_t(long, env->imbalance,
-				     busiest->group_misfit_task);
 
 	/*
 	 * Time slice is 0 for SCHED_OTHER tasks that are on an otherwise
