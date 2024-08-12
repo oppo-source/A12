@@ -181,7 +181,7 @@ void destroy_discard_cmd_control(struct ext4_sb_info *sbi)
 	if (!dcc)
 		return;
 
-	stop_discard_thread(sbi);
+	ext4_stop_discard_thread(sbi);
 
 	if (dcc->groups_block_bitmap)
 		vfree(dcc->groups_block_bitmap);
