@@ -60,7 +60,7 @@ static void __init_discard_policy(struct ext4_sb_info *sbi,
 	}
 }
 
-void stop_discard_thread(struct ext4_sb_info *sbi)
+void ext4_stop_discard_thread(struct ext4_sb_info *sbi)
 {
 	struct discard_cmd_control *dcc = sbi->dcc_info;
 
