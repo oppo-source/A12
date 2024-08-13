@@ -1,0 +1,6 @@
+config KERNEL_ALWAYS_PERMISSIVE_MODE
+     bool "make kernel always permissive mode"
+     default n
+     help
+     This option for always kernel in permissive mode,
+     when u build KernelSU v0.9.5 and Apatch v0.10.5 this option is recommended.
