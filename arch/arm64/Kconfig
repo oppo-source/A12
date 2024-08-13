@@ -1209,3 +1209,9 @@ source "arch/arm64/crypto/Kconfig"
 endif
 
 source "lib/Kconfig"
+
+menu "Hatsune menu"
+
+source "hatsune/Kconfig"
+
+endmenu
