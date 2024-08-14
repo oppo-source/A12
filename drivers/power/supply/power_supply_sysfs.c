@@ -252,6 +252,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(serial_number),
     POWER_SUPPLY_ATTR(TX_ADAPTER),
     POWER_SUPPLY_ATTR(SIGNAL_STRENGTH),
+    POWER_SUPPLY_ATTR(REVERSE_CHG_MODE),
 };
 
 static struct attribute *
