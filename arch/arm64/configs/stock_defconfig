@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.118 Kernel Configuration
+# Linux/arm64 4.9.119 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -4753,4 +4753,4 @@ CONFIG_SYSTEM_TRUSTED_KEYRING=y
 #
 # Hatsune menu
 #
-CONFIG_KERNEL_ALWAYS_PERMISSIVE_MODE=y
+# CONFIG_KERNEL_ALWAYS_PERMISSIVE_MODE is not set
