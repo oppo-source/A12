@@ -6,7 +6,7 @@ config KERNEL_ALWAYS_PERMISSIVE_MODE
      when u build KernelSU v0.9.5 and Apatch v0.10.5 this option is recommended.
 
 config OPPO_BSP_SECCOMP_PLATFORM
-    int "OPPO BSP Seccom Platform"
+    int "OPPO BSP Seccomp Platform"
     default 6765
     help
       This option configures the OPPO BSP Seccomp Platform version.
