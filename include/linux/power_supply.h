@@ -225,6 +225,10 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_USB_TYPE_C,	/* Type C Port */
 	POWER_SUPPLY_TYPE_USB_PD,	/* Power Delivery Port */
 	POWER_SUPPLY_TYPE_USB_PD_DRP,	/* PD Dual Role Port */
+    POWER_SUPPLY_TYPE_USB_HVDCP,		/* High Voltage DCP */
+	POWER_SUPPLY_TYPE_USB_HVDCP_3,		/* Efficient High Voltage DCP */
+	POWER_SUPPLY_TYPE_USB_HVDCP_3P5,	/* Efficient High Voltage DCP */
+	POWER_SUPPLY_TYPE_USB_FLOAT,		/* Floating charger */
 };
 
 enum power_supply_quick_charge_type {
