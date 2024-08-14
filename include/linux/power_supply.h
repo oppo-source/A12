@@ -209,6 +209,7 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+	POWER_SUPPLY_PROP_QUICK_CHARGE_TYPE,
 };
 
 enum power_supply_type {
@@ -224,6 +225,15 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_USB_TYPE_C,	/* Type C Port */
 	POWER_SUPPLY_TYPE_USB_PD,	/* Power Delivery Port */
 	POWER_SUPPLY_TYPE_USB_PD_DRP,	/* PD Dual Role Port */
+};
+
+enum power_supply_quick_charge_type {
+	QUICK_CHARGE_NORMAL = 0,		/* Charging Power <= 10W */
+	QUICK_CHARGE_FAST,			/* 10W < Charging Power <= 20W */
+	QUICK_CHARGE_FLASH,			/* 20W < Charging Power <= 30W */
+	QUICK_CHARGE_TURBE,			/* 30W < Charging Power <= 50W */
+	QUICK_CHARGE_SUPER,			/* Charging Power > 50W */
+	QUICK_CHARGE_MAX,
 };
 
 enum power_supply_notifier_events {
