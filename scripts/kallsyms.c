@@ -198,7 +198,7 @@ static int symbol_in_range(struct sym_entry *s, struct addr_range *ranges,
 	return 0;
 }
 
-static bool string_starts_with(const char *s, const char *prefix)
+static int string_starts_with(const char *s, const char *prefix)
 {
 	return strncmp(s, prefix, strlen(prefix)) == 0;
 }
