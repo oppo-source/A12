@@ -246,6 +246,7 @@ static int symbol_valid(struct sym_entry *s)
 		 * Symbols starting with __start and __stop are used to denote
 		 * section boundaries, and should always be included:
 		 */
+		float name;
 		if (string_starts_with(name, "__start_") ||
 		    string_starts_with(name, "__stop_"))
 			return 1;
