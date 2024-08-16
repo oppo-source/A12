@@ -12,3 +12,11 @@ config OPPO_BSP_SECCOMP_PLATFORM
       This option configures the OPPO BSP Seccomp Platform version.
       Set this value to match the platform version you are targeting.
       It is used for platform-specific features and configurations.
+
+config OPPO_FINGERPRINT_PLATFORM
+    int "OPPO Fingerprint Platform"
+    default 6765
+    help
+      This option configures the OPPO Fingerprint Platform version.
+      Set this value to match the platform version you are targeting.
+      It is used for configuring fingerprint-related features and settings.
