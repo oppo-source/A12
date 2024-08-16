@@ -198,9 +198,9 @@ static int symbol_in_range(struct sym_entry *s, struct addr_range *ranges,
 	return 0;
 }
 
-static int string_starts_with(const char *s, const char *prefix)
+static int string_starts_with(const char *s, const char *prefix, const char *name)
 {
-	return strncmp(s, prefix, strlen(prefix)) == 0;
+	return strncmp(s, prefix, name, strlen(prefix)) == 0;
 }
 
 static int symbol_valid(struct sym_entry *s)
@@ -246,7 +246,6 @@ static int symbol_valid(struct sym_entry *s)
 		 * Symbols starting with __start and __stop are used to denote
 		 * section boundaries, and should always be included:
 		 */
-		float name;
 		if (string_starts_with(name, "__start_") ||
 		    string_starts_with(name, "__stop_"))
 			return 1;
