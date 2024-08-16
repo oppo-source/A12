@@ -3873,57 +3873,6 @@ static int selinux_kernel_read_file(struct file *file,
 	return rc;
 }
 
-static int selinux_kernel_module_from_file(struct file *file)
-{
-	struct common_audit_data ad;
-	struct inode_security_struct *isec;
-	struct file_security_struct *fsec;
-	struct inode *inode;
-	u32 sid = current_sid();
-	int rc;
-
-	/* init_module */
-	if (file == NULL) {
-		rc = avc_has_perm(sid, SECINITSID_KERNEL, SECCLASS_SYSTEM,
-					SYSTEM__MODULE_LOAD, NULL);
-		goto out;
-	}
-
-	/* finit_module */
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
-
-	inode = file_inode(file);
-	isec = inode->i_security;
-	fsec = file->f_security;
-
-	if (sid != fsec->sid) {
-		rc = avc_has_perm(sid, fsec->sid, SECCLASS_FD, FD__USE, &ad);
-		if (rc)
-			goto out;
-	}
-
-	rc = avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM,
-				SYSTEM__MODULE_LOAD, &ad);
-out:
-	return rc;
-}
-
-static selinux_kernel_read_file(struct file *file, enum kernel_read_file_id id)
-{
-	int rc = 0;
-
-	switch (id) {
-	case READING_MODULE:
-		rc = selinux_kernel_module_from_file(file);
-		break;
-	default:
-		break;
-	}
-
-	return rc;
-}
-
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return current_has_perm(p, PROCESS__SETPGID);
