@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.121 Kernel Configuration
+# Linux/arm64 4.9.123 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -4744,4 +4744,4 @@ CONFIG_SBITMAP=y
 #
 # Hatsune menu
 #
-CONFIG_KERNEL_ALWAYS_PERMISSIVE_MODE=y
+# CONFIG_KERNEL_ALWAYS_PERMISSIVE_MODE is not set
