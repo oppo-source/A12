@@ -1272,15 +1272,9 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	return fd;
 }
 
-int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
-{
-	return ion_share_dma_buf_fd(client, handle, true);
-}
-
 EXPORT_SYMBOL(ion_share_dma_buf_fd);
 
-int ion_share_dma_buf_fd_nolock(struct ion_client *client,
-				struct ion_handle *handle)
+int ion_share_dma_buf_fd_nolock(struct ion_client *client, struct ion_handle *handle)
 {
 	return ion_share_dma_buf_fd(client, handle, false);
 }
