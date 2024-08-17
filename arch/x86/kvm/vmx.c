@@ -198,14 +198,12 @@ static enum vmx_l1d_flush_state __read_mostly vmentry_l1d_flush_param = VMENTER_
 
 static const struct {
 	const char *option;
-	bool for_parse;
+	enum vmx_l1d_flush_state cmd;
 } vmentry_l1d_param[] = {
-	[VMENTER_L1D_FLUSH_AUTO]	 = {"auto", true},
-	[VMENTER_L1D_FLUSH_NEVER]	 = {"never", true},
-	[VMENTER_L1D_FLUSH_COND]	 = {"cond", true},
-	[VMENTER_L1D_FLUSH_ALWAYS]	 = {"always", true},
-	[VMENTER_L1D_FLUSH_EPT_DISABLED] = {"EPT disabled", false},
-	[VMENTER_L1D_FLUSH_NOT_REQUIRED] = {"not required", false},
+	{"auto",	VMENTER_L1D_FLUSH_AUTO},
+	{"never",	VMENTER_L1D_FLUSH_NEVER},
+	{"cond",	VMENTER_L1D_FLUSH_COND},
+	{"always",	VMENTER_L1D_FLUSH_ALWAYS},
 };
 
 #define L1D_CACHE_ORDER 4
@@ -289,9 +287,8 @@ static int vmentry_l1d_flush_parse(const char *s)
 
 	if (s) {
 		for (i = 0; i < ARRAY_SIZE(vmentry_l1d_param); i++) {
-			if (vmentry_l1d_param[i].for_parse &&
-			    sysfs_streq(s, vmentry_l1d_param[i].option))
-				return i;
+			if (sysfs_streq(s, vmentry_l1d_param[i].option))
+				return vmentry_l1d_param[i].cmd;
 		}
 	}
 	return -EINVAL;
@@ -301,12 +298,12 @@ static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
 {
 	int l1tf, ret;
 
+	if (!boot_cpu_has(X86_BUG_L1TF))
+		return 0;
+
 	l1tf = vmentry_l1d_flush_parse(s);
 	if (l1tf < 0)
 		return l1tf;
-
-	if (!boot_cpu_has(X86_BUG_L1TF))
-		return 0;
 
 	/*
 	 * Has vmx_init() run already? If not then this is the pre init
@@ -327,9 +324,6 @@ static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
 
 static int vmentry_l1d_flush_get(char *s, const struct kernel_param *kp)
 {
-	if (WARN_ON_ONCE(l1tf_vmx_mitigation >= ARRAY_SIZE(vmentry_l1d_param)))
-		return sprintf(s, "???\n");
-
 	return sprintf(s, "%s\n", vmentry_l1d_param[l1tf_vmx_mitigation].option);
 }
 
