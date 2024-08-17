@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.125 Kernel Configuration
+# Linux/arm64 4.9.126 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -366,7 +366,7 @@ CONFIG_MACH_MT6765=y
 # CONFIG_ARCH_ZX is not set
 # CONFIG_ARCH_ZYNQMP is not set
 CONFIG_ODM_WT_EDIT=y
-CONFIG_ODM_HQ_EDIT
+CONFIG_ODM_HQ_EDIT=y
 
 #
 # Bus support
